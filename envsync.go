@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sort"
@@ -11,6 +12,9 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+//ExecCommand cmd executor
+var ExecCommand = exec.Command
 
 const (
 	separator   = "="
@@ -52,9 +56,9 @@ func (s *Syncer) Sync(source, target string) error {
 	backupFile := fmt.Sprintf("%s.bak", target)
 	defer func(err error) {
 		if err != nil {
-			exec.Command("cp", backupFile, target).Run()
+			ExecCommand("cp", "-f", backupFile, target).Run()
 		}
-		exec.Command("rm", "-f", backupFile).Run()
+		ExecCommand("rm", "-f", backupFile).Run()
 	}(err)
 
 	// open the source file
@@ -80,13 +84,21 @@ func (s *Syncer) Sync(source, target string) error {
 	if err != nil {
 		return err
 	}
-	exec.Command("cp", "-f", target, backupFile).Run()
+	err = ExecCommand("cp", "-f", target, backupFile).Run()
+	if err != nil {
+		return err
+	}
 	newEnv, additionalEnv := s.appendNewEnv(sMap, tMap)
-	s.print(additionalEnv)
+
+	if len(additionalEnv) > 0 {
+		fmt.Printf("New env added:\n%s\n", s.toString(additionalEnv))
+	}
+
 	//clear current file
 	tFile.Truncate(0)
 	tFile.Seek(0, 0)
-	err = s.writeEnv(tFile, newEnv)
+	b := s.toString(newEnv)
+	_, err = io.WriteString(tFile, b)
 	return errors.Wrap(err, "couldn't write target file")
 }
 
@@ -105,7 +117,7 @@ func (s *Syncer) prefix(key string) string {
 	return strings.Split(key, "_")[0]
 }
 
-func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
+func (s *Syncer) toString(env map[string]string) string {
 	keys := make([]string, 0, len(env))
 	for k := range env {
 		keys = append(keys, k)
@@ -129,24 +141,7 @@ func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
 		buff.WriteString(fmt.Sprintf(valueFmt, k, env[k]))
 	}
 
-	if _, err := file.WriteString(buff.String()); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error when writing file %s", buff.String()))
-	}
-	return nil
-}
-
-func (s *Syncer) print(env map[string]string) {
-	keys := make([]string, 0, len(env))
-	for k := range env {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys) // sort env before write
-	if len(keys) > 0 {
-		fmt.Println("New env added")
-	}
-	for _, k := range keys {
-		fmt.Printf(valueFmt, k, env[k])
-	}
+	return buff.String()
 }
 
 func (s *Syncer) mapEnv(file *os.File) (map[string]string, error) {

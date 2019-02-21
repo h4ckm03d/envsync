@@ -2,6 +2,7 @@ package envsync_test
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -51,6 +52,32 @@ func TestSyncer_Sync_Success(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, v, r)
 	}
+}
+
+func TestSyncer_Sync_FailBackup(t *testing.T) {
+	syncer := &envsync.Syncer{}
+	counter := 0
+	envsync.ExecCommand = func(command string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", command}
+		cs = append(cs, args...)
+		name := os.Args[0]
+
+		if counter == 0 { //forced first command failed
+			name = "xxxx"
+		}
+		cmd := exec.Command(name, cs...)
+		fmt.Println("call", cs, "->", cmd.Run())
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		counter++
+		return cmd
+	}
+	defer func() { envsync.ExecCommand = exec.Command }()
+	result := "testdata/env.result.error.corrupt"
+	exec.Command("touch", result).Run()
+	defer exec.Command("rm", "-rf", result).Run()
+
+	err := syncer.Sync("testdata/env.success", result)
+	assert.Error(t, err)
 }
 
 func TestSyncer_Sync_Success_Rewrite(t *testing.T) {
