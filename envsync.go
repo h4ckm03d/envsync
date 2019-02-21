@@ -83,22 +83,24 @@ func (s *Syncer) Sync(source, target string) error {
 	if err != nil {
 		return err
 	}
-	addedEnv := s.appendNewEnv(sMap, tMap)
-
+	newEnv, additionalEnv := s.appendNewEnv(sMap, tMap)
+	s.print(additionalEnv)
 	//clear current file
 	tFile.Truncate(0)
 	tFile.Seek(0, 0)
-	err = s.writeEnv(tFile, addedEnv)
+	err = s.writeEnv(tFile, newEnv)
 	return errors.Wrap(err, "couldn't write target file")
 }
 
-func (s *Syncer) appendNewEnv(sMap, tMap map[string]string) map[string]string {
+func (s *Syncer) appendNewEnv(sMap, tMap map[string]string) (map[string]string, map[string]string) {
+	addedEnv := make(map[string]string)
 	for k, v := range sMap {
 		if _, found := tMap[k]; !found {
 			tMap[k] = v
+			addedEnv[k] = v
 		}
 	}
-	return tMap
+	return tMap, addedEnv
 }
 
 func (s *Syncer) prefix(key string) string {
@@ -130,6 +132,20 @@ func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func (s *Syncer) print(env map[string]string) {
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys) // sort env before write
+	if len(keys) > 0 {
+		fmt.Println("New env added")
+	}
+	for _, k := range keys {
+		fmt.Printf(valueFmt, k, env[k])
+	}
 }
 
 func (s *Syncer) mapEnv(file *os.File) (map[string]string, error) {
