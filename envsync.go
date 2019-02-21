@@ -14,6 +14,8 @@ import (
 const (
 	separator   = "="
 	splitNumber = 2
+	groupFmt    = "\n# %s\n"
+	valueFmt    = "%s=%s\n"
 )
 
 // EnvSyncer describes some contracts to synchronize env.
@@ -99,15 +101,31 @@ func (s *Syncer) appendNewEnv(sMap, tMap map[string]string) map[string]string {
 	return tMap
 }
 
+func (s *Syncer) prefix(key string) string {
+	return strings.Split(key, "_")[0]
+}
+
 func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
 	keys := make([]string, 0, len(env))
 	for k := range env {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys) // sort env before write
-
-	for _, k := range keys {
-		if _, err := file.WriteString(fmt.Sprintf("%s=%s\n", k, env[k])); err != nil {
+	group := ""
+	groupComment := groupFmt
+	for i, k := range keys {
+		if g := s.prefix(k); g != group {
+			if i == 0 {
+				groupComment = "# %s\n"
+			} else {
+				groupComment = groupFmt
+			}
+			if _, err := file.WriteString(fmt.Sprintf(groupComment, g)); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("error when writing group: %s", g))
+			}
+			group = g
+		}
+		if _, err := file.WriteString(fmt.Sprintf(valueFmt, k, env[k])); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("error when writing key: %s, and value: %s", k, env[k]))
 		}
 	}
