@@ -53,7 +53,7 @@ func (s *Syncer) Sync(source, target string) error {
 		if err != nil {
 			exec.Command("cp", backupFile, target).Run()
 		}
-		exec.Command("rm", "-rf", backupFile).Run()
+		exec.Command("rm", "-f", backupFile).Run()
 	}(err)
 
 	// open the source file
