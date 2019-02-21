@@ -2,6 +2,7 @@ package envsync
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -79,10 +80,7 @@ func (s *Syncer) Sync(source, target string) error {
 	if err != nil {
 		return err
 	}
-	err = exec.Command("cp", "-f", target, backupFile).Run()
-	if err != nil {
-		return err
-	}
+	exec.Command("cp", "-f", target, backupFile).Run()
 	newEnv, additionalEnv := s.appendNewEnv(sMap, tMap)
 	s.print(additionalEnv)
 	//clear current file
@@ -114,7 +112,10 @@ func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
 	}
 	sort.Strings(keys) // sort env before write
 	group := ""
-	groupComment := groupFmt
+	groupComment := ""
+
+	var buff bytes.Buffer
+
 	for i, k := range keys {
 		if g := s.prefix(k); g != group {
 			if i == 0 {
@@ -122,14 +123,14 @@ func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
 			} else {
 				groupComment = groupFmt
 			}
-			if _, err := file.WriteString(fmt.Sprintf(groupComment, g)); err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error when writing group: %s", g))
-			}
+			buff.WriteString(fmt.Sprintf(groupComment, g))
 			group = g
 		}
-		if _, err := file.WriteString(fmt.Sprintf(valueFmt, k, env[k])); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error when writing key: %s, and value: %s", k, env[k]))
-		}
+		buff.WriteString(fmt.Sprintf(valueFmt, k, env[k]))
+	}
+
+	if _, err := file.WriteString(buff.String()); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("error when writing file %s", buff.String()))
 	}
 	return nil
 }
