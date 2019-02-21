@@ -54,12 +54,6 @@ type Syncer struct {
 func (s *Syncer) Sync(source, target string) error {
 	var err error
 	backupFile := fmt.Sprintf("%s.bak", target)
-	defer func(err error) {
-		if err != nil {
-			ExecCommand("cp", "-f", backupFile, target).Run()
-		}
-		ExecCommand("rm", "-f", backupFile).Run()
-	}(err)
 
 	// open the source file
 	sFile, err := os.Open(source)
@@ -84,12 +78,10 @@ func (s *Syncer) Sync(source, target string) error {
 	if err != nil {
 		return err
 	}
-	err = ExecCommand("cp", "-f", target, backupFile).Run()
-	if err != nil {
+	if err = ExecCommand("cp", "-f", target, backupFile).Run(); err != nil {
 		return err
 	}
 	newEnv, additionalEnv := s.appendNewEnv(sMap, tMap)
-
 	if len(additionalEnv) > 0 {
 		fmt.Printf("New env added:\n%s\n", s.toString(additionalEnv))
 	}
@@ -99,6 +91,10 @@ func (s *Syncer) Sync(source, target string) error {
 	tFile.Seek(0, 0)
 	b := s.toString(newEnv)
 	_, err = io.WriteString(tFile, b)
+	if err != nil {
+		ExecCommand("cp", "-f", backupFile, target).Run()
+	}
+	ExecCommand("rm", "-f", backupFile).Run()
 	return errors.Wrap(err, "couldn't write target file")
 }
 
@@ -123,8 +119,7 @@ func (s *Syncer) toString(env map[string]string) string {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys) // sort env before write
-	group := ""
-	groupComment := ""
+	group, groupComment := "", ""
 
 	var buff bytes.Buffer
 
