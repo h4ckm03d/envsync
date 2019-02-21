@@ -36,10 +36,18 @@ func TestSyncer_Sync_Success(t *testing.T) {
 	assert.Nil(t, err)
 
 	sMap := fileToMap("testdata/env.success")
+	sortedMap := fileToMap("testdata/env.sorted")
 	tMap := fileToMap(result)
 
 	for k, v := range sMap {
 		r, ok := tMap[k]
+		assert.True(t, ok)
+		assert.Equal(t, v, r)
+	}
+
+	//test sorted map
+	for k, v := range tMap {
+		r, ok := sortedMap[k]
 		assert.True(t, ok)
 		assert.Equal(t, v, r)
 	}

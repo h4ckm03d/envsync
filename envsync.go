@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -82,9 +83,15 @@ func (s *Syncer) additionalEnv(sMap, tMap map[string]string) map[string]string {
 }
 
 func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
-	for k, v := range env {
-		if _, err := file.WriteString(fmt.Sprintf("%s=%s\n", k, v)); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error when writing key: %s, and value: %s", k, v))
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys) // sort env before write
+
+	for _, k := range keys {
+		if _, err := file.WriteString(fmt.Sprintf("%s=%s\n", k, env[k])); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("error when writing key: %s, and value: %s", k, env[k]))
 		}
 	}
 	return nil
