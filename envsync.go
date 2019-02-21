@@ -1,25 +1,19 @@
 package envsync
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"sort"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 )
 
 //ExecCommand cmd executor
 var ExecCommand = exec.Command
-
-const (
-	separator   = "="
-	splitNumber = 2
-)
 
 // EnvSyncer describes some contracts to synchronize env.
 type EnvSyncer interface {
@@ -67,12 +61,12 @@ func (s *Syncer) Sync(source, target string) error {
 	}
 	defer tFile.Close()
 
-	sMap, err := s.mapEnv(sFile)
+	sMap, err := godotenv.Parse(sFile)
 	if err != nil {
 		return err
 	}
 
-	tMap, err := s.mapEnv(tFile)
+	tMap, err := godotenv.Parse(tFile)
 	if err != nil {
 		return err
 	}
@@ -88,7 +82,7 @@ func (s *Syncer) Sync(source, target string) error {
 	tFile.Truncate(0)
 	tFile.Seek(0, 0)
 	b := s.toString(newEnv)
-	_, err = io.WriteString(tFile, b)
+	_, err = tFile.Write(b)
 	if err != nil {
 		ExecCommand("cp", "-f", backupFile, target).Run()
 	}
@@ -111,7 +105,7 @@ func (s *Syncer) prefix(key string) string {
 	return strings.Split(key, "_")[0]
 }
 
-func (s *Syncer) toString(env map[string]string) string {
+func (s *Syncer) toString(env map[string]string) []byte {
 	keys := make([]string, 0, len(env))
 	for k := range env {
 		keys = append(keys, k)
@@ -134,29 +128,5 @@ func (s *Syncer) toString(env map[string]string) string {
 		buff.WriteString(fmt.Sprintf("%s=%s\n", k, env[k]))
 	}
 
-	return buff.String()
-}
-
-func (s *Syncer) mapEnv(file *os.File) (map[string]string, error) {
-	res := make(map[string]string)
-
-	sc := bufio.NewScanner(file)
-	sc.Split(bufio.ScanLines)
-
-	for sc.Scan() {
-		if sc.Text() != "" {
-			if strings.HasPrefix(sc.Text(), "#") {
-				continue
-			}
-
-			sp := strings.SplitN(sc.Text(), separator, splitNumber)
-			if len(sp) != splitNumber {
-				return res, fmt.Errorf("couldn't split %s by '=' into two strings", sc.Text())
-			}
-
-			res[sp[0]] = sp[1]
-		}
-	}
-
-	return res, nil
+	return buff.Bytes()
 }
