@@ -19,8 +19,6 @@ var ExecCommand = exec.Command
 const (
 	separator   = "="
 	splitNumber = 2
-	groupFmt    = "\n# %s\n"
-	valueFmt    = "%s=%s\n"
 )
 
 // EnvSyncer describes some contracts to synchronize env.
@@ -128,12 +126,12 @@ func (s *Syncer) toString(env map[string]string) string {
 			if i == 0 {
 				groupComment = "# %s\n"
 			} else {
-				groupComment = groupFmt
+				groupComment = "\n# %s\n"
 			}
 			buff.WriteString(fmt.Sprintf(groupComment, g))
 			group = g
 		}
-		buff.WriteString(fmt.Sprintf(valueFmt, k, env[k]))
+		buff.WriteString(fmt.Sprintf("%s=%s\n", k, env[k]))
 	}
 
 	return buff.String()
