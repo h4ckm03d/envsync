@@ -53,6 +53,34 @@ func TestSyncer_Sync_Success(t *testing.T) {
 	}
 }
 
+func TestSyncer_Sync_Success_Rewrite(t *testing.T) {
+	syncer := &envsync.Syncer{}
+
+	result := "testdata/env.result.sorted"
+	exec.Command("cp", "testdata/env.success", result).Run()
+	defer exec.Command("rm", "-rf", result).Run()
+
+	err := syncer.Sync("testdata/env.sorted_append", result)
+	assert.Nil(t, err)
+
+	sMap := fileToMap("testdata/env.success")
+	sortedMap := fileToMap("testdata/env.sorted_append")
+	tMap := fileToMap(result)
+
+	for k, v := range sMap {
+		r, ok := tMap[k]
+		assert.True(t, ok)
+		assert.Equal(t, v, r)
+	}
+
+	//test sorted map
+	for k, v := range tMap {
+		r, ok := sortedMap[k]
+		assert.True(t, ok)
+		assert.Equal(t, v, r)
+	}
+}
+
 func TestSyncer_Sync_CorruptSourceFormat(t *testing.T) {
 	syncer := &envsync.Syncer{}
 

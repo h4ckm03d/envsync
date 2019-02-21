@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 
@@ -44,6 +45,15 @@ type Syncer struct {
 // Any key-values that have been synchronized before the error occurred is kept in target.
 // Any key-values that haven't been synchronized because of an error occurred is ignored.
 func (s *Syncer) Sync(source, target string) error {
+	var err error
+	backupFile := fmt.Sprintf("%s.bak", target)
+	defer func(err error) {
+		if err != nil {
+			exec.Command("cp", backupFile, target).Run()
+		}
+		exec.Command("rm", "-rf", backupFile).Run()
+	}(err)
+
 	// open the source file
 	sFile, err := os.Open(source)
 	if err != nil {
@@ -67,19 +77,26 @@ func (s *Syncer) Sync(source, target string) error {
 	if err != nil {
 		return err
 	}
+	err = exec.Command("cp", "-f", target, backupFile).Run()
+	if err != nil {
+		return err
+	}
+	addedEnv := s.appendNewEnv(sMap, tMap)
 
-	addedEnv := s.additionalEnv(sMap, tMap)
-	return s.writeEnv(tFile, addedEnv)
+	//clear current file
+	tFile.Truncate(0)
+	tFile.Seek(0, 0)
+	err = s.writeEnv(tFile, addedEnv)
+	return errors.Wrap(err, "couldn't write target file")
 }
 
-func (s *Syncer) additionalEnv(sMap, tMap map[string]string) map[string]string {
-	addedEnv := make(map[string]string)
+func (s *Syncer) appendNewEnv(sMap, tMap map[string]string) map[string]string {
 	for k, v := range sMap {
 		if _, found := tMap[k]; !found {
-			addedEnv[k] = v
+			tMap[k] = v
 		}
 	}
-	return addedEnv
+	return tMap
 }
 
 func (s *Syncer) writeEnv(file *os.File, env map[string]string) error {
