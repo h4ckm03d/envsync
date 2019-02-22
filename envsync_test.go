@@ -2,7 +2,9 @@ package envsync_test
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -52,6 +54,21 @@ func TestSyncer_Sync_Success(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, v, r)
 	}
+}
+
+func TestSyncer_Sync_Fail_Write(t *testing.T) {
+	syncer := &envsync.Syncer{}
+	envsync.IOWriteString = func(w io.Writer, s string) (n int, err error) {
+		return len(s), errors.New("fail write")
+	}
+	defer func() { envsync.IOWriteString = io.WriteString }()
+	result := "testdata/env.result.error.corrupt"
+	exec.Command("touch", result).Run()
+	defer exec.Command("rm", "-rf", result).Run()
+
+	err := syncer.Sync("testdata/env.success", result)
+	assert.Error(t, err)
+
 }
 
 func TestSyncer_Sync_FailBackup(t *testing.T) {

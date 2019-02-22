@@ -3,6 +3,7 @@ package envsync
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sort"
@@ -12,8 +13,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-//ExecCommand cmd executor
-var ExecCommand = exec.Command
+var (
+	//ExecCommand cmd executor
+	ExecCommand = exec.Command
+	//IOWriteString alias command to write string
+	IOWriteString = io.WriteString
+)
 
 // EnvSyncer describes some contracts to synchronize env.
 type EnvSyncer interface {
@@ -82,7 +87,7 @@ func (s *Syncer) Sync(source, target string) error {
 	tFile.Truncate(0)
 	tFile.Seek(0, 0)
 	b := s.toString(newEnv)
-	_, err = tFile.Write(b)
+	_, err = IOWriteString(tFile, b)
 	if err != nil {
 		ExecCommand("cp", "-f", backupFile, target).Run()
 	}
@@ -105,7 +110,7 @@ func (s *Syncer) prefix(key string) string {
 	return strings.Split(key, "_")[0]
 }
 
-func (s *Syncer) toString(env map[string]string) []byte {
+func (s *Syncer) toString(env map[string]string) string {
 	keys := make([]string, 0, len(env))
 	for k := range env {
 		keys = append(keys, k)
@@ -128,5 +133,5 @@ func (s *Syncer) toString(env map[string]string) []byte {
 		buff.WriteString(fmt.Sprintf("%s=%s\n", k, env[k]))
 	}
 
-	return buff.Bytes()
+	return buff.String()
 }
