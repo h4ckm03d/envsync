@@ -33,7 +33,7 @@ func TestSyncer_Sync_Success(t *testing.T) {
 
 	result := "testdata/env.result.error.corrupt"
 	exec.Command("touch", result).Run()
-	defer exec.Command("rm", "-rf", result).Run()
+	defer exec.Command("rm", "-f", result).Run()
 
 	err := syncer.Sync("testdata/env.success", result)
 	assert.Nil(t, err)
@@ -64,7 +64,7 @@ func TestSyncer_Sync_Fail_Write(t *testing.T) {
 	defer func() { envsync.IOWriteString = io.WriteString }()
 	result := "testdata/env.result.error.corrupt"
 	exec.Command("touch", result).Run()
-	defer exec.Command("rm", "-rf", result).Run()
+	defer exec.Command("rm", "-f", result).Run()
 
 	err := syncer.Sync("testdata/env.success", result)
 	assert.Error(t, err)
@@ -91,7 +91,7 @@ func TestSyncer_Sync_FailBackup(t *testing.T) {
 	defer func() { envsync.ExecCommand = exec.Command }()
 	result := "testdata/env.result.error.corrupt"
 	exec.Command("touch", result).Run()
-	defer exec.Command("rm", "-rf", result).Run()
+	defer exec.Command("rm", "-f", result).Run()
 
 	err := syncer.Sync("testdata/env.success", result)
 	assert.Error(t, err)
@@ -102,7 +102,7 @@ func TestSyncer_Sync_Success_Rewrite(t *testing.T) {
 
 	result := "testdata/env.result.sorted"
 	exec.Command("cp", "testdata/env.success", result).Run()
-	defer exec.Command("rm", "-rf", result).Run()
+	defer exec.Command("rm", "-f", result).Run()
 
 	err := syncer.Sync("testdata/env.sorted_append", result)
 	assert.Nil(t, err)
@@ -130,7 +130,7 @@ func TestSyncer_Sync_CorruptSourceFormat(t *testing.T) {
 
 	result := "testdata/env.result.success.corrupt"
 	exec.Command("touch", result).Run()
-	defer exec.Command("rm", "-rf", result).Run()
+	defer exec.Command("rm", "-f", result).Run()
 
 	err := syncer.Sync("testdata/env.error", result)
 	assert.NotNil(t, err)
@@ -141,7 +141,7 @@ func TestSyncer_Sync_CorruptTargetFormat(t *testing.T) {
 
 	result := "testdata/env.result.error.corrupt"
 	exec.Command("touch", result).Run()
-	defer exec.Command("rm", "-rf", result).Run()
+	defer exec.Command("rm", "-f", result).Run()
 
 	file, _ := os.OpenFile(result, os.O_APPEND|os.O_RDWR, os.ModeAppend)
 	defer file.Close()
